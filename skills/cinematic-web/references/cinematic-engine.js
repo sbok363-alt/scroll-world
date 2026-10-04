@@ -1,3 +1,4 @@
+import { mountMicroScrubs } from './micro-scrub.js';
 import { mountViewportVideos } from './viewport-video.js';
 
 const mounts = new WeakMap();
@@ -16,6 +17,9 @@ export function mountCinematicWeb(root = document, options = {}) {
   const host = resolveHost(root);
   host.setAttribute('data-cw-mounted', '');
   const viewportVideos = mountViewportVideos(root, options.viewportVideo);
+  const microScrubs = root.querySelector('[data-cw-kind="scrub"]')
+    ? mountMicroScrubs(root, options.microScrub)
+    : { destroy() {} };
 
   let destroyed = false;
   const controller = {
@@ -23,6 +27,7 @@ export function mountCinematicWeb(root = document, options = {}) {
       if (destroyed) return;
       destroyed = true;
       viewportVideos.destroy();
+      microScrubs.destroy();
       host.removeAttribute('data-cw-mounted');
       mounts.delete(root);
     }
