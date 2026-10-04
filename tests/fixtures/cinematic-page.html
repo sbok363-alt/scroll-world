@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Cinematic Web Fixture</title>
+  <link rel="stylesheet" href="/skills/cinematic-web/references/cinematic.css">
+</head>
+<body>
+  <header class="cw-section cw-hero" data-cw-kind="hero">
+    <p class="cw-eyebrow">Cinematic web</p>
+    <h1>Cinematic pages without scroll prison.</h1>
+    <p data-test="semantic-copy">Useful content stays ordinary HTML. Motion is enhancement only.</p>
+    <a data-test="primary-cta" href="#details">See details</a>
+  </header>
+
+  <main>
+    <section class="cw-section" data-cw-kind="video" data-test="natural-section">
+      <div class="cw-copy">
+        <h2>Viewport video</h2>
+        <p>Normal scrolling remains authoritative.</p>
+      </div>
+      <div class="cw-media" data-cw-media>
+        <img data-cw-poster alt="Abstract orange motion poster" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'%3E%3Crect width='1600' height='900' fill='%23111111'/%3E%3Ccircle cx='800' cy='450' r='220' fill='%23ff7a1a'/%3E%3C/svg%3E">
+        <video data-cw-video muted playsinline data-src="/tests/fixtures/media/tiny.mp4"></video>
+      </div>
+    </section>
+
+    <section id="details" class="cw-section" data-cw-kind="content">
+      <h2>Useful content first</h2>
+      <p>Pricing, features, forms and explanations do not wait for an animation.</p>
+    </section>
+
+    <section class="cw-section" data-cw-kind="scrub" data-cw-scroll-vh="2">
+      <div class="cw-copy"><h2>Micro scrub</h2><p>Short, local, and optional.</p></div>
+      <div class="cw-scrub__sticky">
+        <div class="cw-media" data-cw-media>
+          <img data-cw-poster alt="Micro scrub poster" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'%3E%3Crect width='1600' height='900' fill='%23191919'/%3E%3Crect x='500' y='250' width='600' height='400' rx='60' fill='%23ff7a1a'/%3E%3C/svg%3E">
+          <video data-cw-scrub-video muted playsinline data-src="/tests/fixtures/media/tiny.mp4"></video>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="cw-section" data-cw-kind="cta">
+    <h2>Keep scrolling normally.</h2>
+    <a href="#top">Back to top</a>
+  </footer>
+</body>
+</html>
