@@ -88,12 +88,14 @@ test('uses a stable pixel viewport baseline across height-only URL-bar resizes',
   expect(await section.evaluate(el => el.style.getPropertyValue('--cw-scrub-height'))).toBe('2100px');
 
   await page.setViewportSize({ width: 1000, height: 600 });
-  await page.waitForTimeout(30);
+  await expect.poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight })))
+    .toEqual({ width: 1000, height: 600 });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   expect(await section.evaluate(el => el.style.getPropertyValue('--cw-scrub-height'))).toBe('2100px');
 
   await page.setViewportSize({ width: 900, height: 600 });
-  await page.waitForTimeout(30);
-  expect(await section.evaluate(el => el.style.getPropertyValue('--cw-scrub-height'))).toBe('1800px');
+  await expect.poll(() => section.evaluate(el => el.style.getPropertyValue('--cw-scrub-height')))
+    .toBe('1800px');
 });
 
 test('reduced motion and Save-Data keep scrub natural-height and unfetched', async ({ browser }) => {
