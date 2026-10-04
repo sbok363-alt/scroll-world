@@ -148,3 +148,7 @@
 - Seek coalescing now has a final catch-up path after `seeked`.
 - Duplicate mounts, hidden tabs, missing IntersectionObserver, finite-duration guards, object-URL cleanup, CORS failure, and layout shift are explicit test cases.
 - The skill gets a page-level scrub-density rule so many tiny scrubs cannot reconstruct the original 15-scroll problem in aggregate.
+
+## Execution Rulings
+
+- **2026-10-04 — Test runner:** the sandbox cannot resolve GitHub/npm, so RED/GREEN verification runs in GitHub Actions on the isolated `design/cinematic-web` branch. The workflow is introduced in Task 1 as test infrastructure rather than deferred to Task 7; Task 7 hardens the same workflow for final CI. This preserves real browser evidence instead of substituting unrun local claims.
