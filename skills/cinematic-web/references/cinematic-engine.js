@@ -1,3 +1,5 @@
+import { mountViewportVideos } from './viewport-video.js';
+
 const mounts = new WeakMap();
 
 function resolveHost(root) {
@@ -13,12 +15,14 @@ export function mountCinematicWeb(root = document, options = {}) {
 
   const host = resolveHost(root);
   host.setAttribute('data-cw-mounted', '');
+  const viewportVideos = mountViewportVideos(root, options.viewportVideo);
 
   let destroyed = false;
   const controller = {
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      viewportVideos.destroy();
       host.removeAttribute('data-cw-mounted');
       mounts.delete(root);
     }
