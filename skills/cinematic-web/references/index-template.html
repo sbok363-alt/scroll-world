@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="A normal-scrolling cinematic landing page with viewport-triggered media and optional bounded micro-scrub.">
+  <title>Cinematic Web</title>
+  <link rel="stylesheet" href="./cinematic.css">
+</head>
+<body>
+  <header class="cw-section cw-hero" data-cw-kind="hero">
+    <p class="cw-eyebrow">Brand</p>
+    <h1>Useful content first. Motion when it earns the space.</h1>
+    <p>Primary product information lives in semantic HTML and is never gated by media playback.</p>
+    <a href="#story">Explore</a>
+  </header>
+
+  <main>
+    <section id="story" class="cw-section" data-cw-kind="video">
+      <div class="cw-copy">
+        <h2>Viewport cinematic</h2>
+        <p>This independent clip may play automatically when its media frame is visible.</p>
+      </div>
+      <div class="cw-media" data-cw-media>
+        <img data-cw-poster src="poster.webp" alt="Product preview">
+        <video data-cw-video muted playsinline data-src="clip.mp4" data-src-mobile="clip-mobile.mp4"></video>
+      </div>
+    </section>
+
+    <section class="cw-section" data-cw-kind="content">
+      <h2>Normal content stays normal.</h2>
+      <p>Features, comparisons, pricing, forms and important explanations remain ordinary document content.</p>
+    </section>
+
+    <section class="cw-section" data-cw-kind="scrub" data-cw-scroll-vh="2">
+      <div class="cw-copy">
+        <h2>Optional micro scrub</h2>
+        <p>A focused reveal can use a short local scrub. It never becomes the page architecture.</p>
+      </div>
+      <div class="cw-scrub__sticky">
+        <div class="cw-media" data-cw-media>
+          <img data-cw-poster src="scrub-poster.webp" alt="Transformation preview">
+          <video data-cw-scrub-video muted playsinline data-src="scrub.mp4"></video>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="cw-section" data-cw-kind="cta">
+    <h2>Ready when the user is.</h2>
+    <a href="#story">Primary call to action</a>
+  </footer>
+
+  <script type="module">
+    import { mountCinematicWeb } from './cinematic-engine.js';
+    mountCinematicWeb(document);
+  </script>
+</body>
+</html>
