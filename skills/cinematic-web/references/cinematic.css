@@ -6,14 +6,20 @@
   --cw-muted: #a8a8a8;
   --cw-accent: #ff7a1a;
   --cw-max: 72rem;
+  --cw-gap: clamp(1.25rem, 4vw, 4rem);
 }
 
 * { box-sizing: border-box; }
 
-html { background: var(--cw-bg); color: var(--cw-text); }
+html {
+  background: var(--cw-bg);
+  color: var(--cw-text);
+  overflow-x: clip;
+}
 
 body {
   margin: 0;
+  min-width: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--cw-bg);
   color: var(--cw-text);
@@ -26,6 +32,7 @@ a { color: inherit; }
   width: min(100% - 2rem, var(--cw-max));
   margin-inline: auto;
   padding: clamp(3rem, 8vw, 7rem) 0;
+  min-width: 0;
 }
 
 .cw-hero {
@@ -60,11 +67,13 @@ h2 {
 .cw-copy {
   max-width: 44rem;
   margin-bottom: 2rem;
+  min-width: 0;
 }
 
 .cw-media {
   position: relative;
   width: 100%;
+  min-width: 0;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: clamp(1rem, 2vw, 2rem);
@@ -102,6 +111,53 @@ h2 {
   opacity: 0;
 }
 
+/* Approved composition primitives. They stay semantic-first: copy and media
+   remain ordinary children in DOM order, and CSS changes only presentation. */
+.cw-layout--full-bleed {
+  width: 100%;
+  max-width: none;
+}
+
+.cw-layout--full-bleed > .cw-media {
+  border-radius: 0;
+}
+
+.cw-layout--split {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: var(--cw-gap);
+  align-items: center;
+}
+
+.cw-layout--split > .cw-copy {
+  margin-bottom: 0;
+}
+
+.cw-layout--device {
+  display: grid;
+  justify-items: center;
+  gap: var(--cw-gap);
+}
+
+.cw-layout--device > .cw-media {
+  width: min(100%, 34rem);
+  aspect-ratio: 9 / 16;
+}
+
+[data-cw-kind="cards"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+}
+
+[data-cw-kind="cards"] > * {
+  min-width: 0;
+}
+
+[data-cw-kind="cta"] {
+  padding-bottom: calc(clamp(3rem, 8vw, 7rem) + env(safe-area-inset-bottom));
+}
+
 [data-cw-kind="scrub"].cw-scrub--enhanced {
   min-height: var(--cw-scrub-height);
 }
@@ -115,8 +171,34 @@ h2 {
 }
 
 @media (max-width: 860px) {
-  .cw-section { width: min(100% - 1.25rem, var(--cw-max)); }
-  .cw-media { border-radius: 1rem; }
+  .cw-section {
+    width: min(100% - 1.25rem, var(--cw-max));
+  }
+
+  .cw-media {
+    border-radius: 1rem;
+  }
+
+  .cw-layout--full-bleed {
+    width: 100%;
+  }
+
+  .cw-layout--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cw-layout--split > .cw-copy {
+    order: initial;
+  }
+
+  .cw-layout--split > .cw-media {
+    order: initial;
+  }
+
+  [data-cw-kind="cta"] {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
