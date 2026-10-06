@@ -1,129 +1,86 @@
 # scroll-world
 
+This fork ships two web-design skills under the same `scroll-world` plugin identity.
 
-https://github.com/user-attachments/assets/b08e641e-985b-4bd4-83ff-6750272d0c37
+## `cinematic-web` — default
 
+Use `skills/cinematic-web` for cinematic product and brand pages that still behave like normal websites.
 
-An agent skill — for Claude Code, Codex, and any `SKILL.md`-compatible agent — that
-builds an immersive, **scroll-scrubbed "fly through the world" landing page** for any industry or brand — the kind where, as you scroll, a camera flies
-from *outside* each scene *into* its interior, then flows on to the next scene with **no
-cuts**. One continuous connected flight through a little generated world (think the Emons
-logistics site, applied to whatever you want).
+- **Normal document scroll** stays authoritative. No page-wide scroll hijacking and no requirement to render one giant continuous movie.
+- **Static HTML is the default.** Useful copy, navigation, and CTAs remain semantic and usable before media loads.
+- **Viewport-triggered autoplay video** is progressive enhancement: muted, inline, lazy, and without native playback controls.
+- **Micro-scrubs are bounded.** A scrub uses **1–3 viewport heights** of local scroll budget, defaults to 2, and should be rare rather than the whole page.
+- `prefers-reduced-motion` and Save-Data fall back to the static/natural-height experience.
+- Desktop media can be cropped for phones; a separate portrait render is only justified when the composition actually needs one.
+- The runtime is provider-agnostic. Generation guidance is free-first and requires current capability, quota/price, and commercial-rights checks before spending or shipping.
+
+The main runtime/reference files live in:
+
+```text
+skills/cinematic-web/
+├── SKILL.md
+└── references/
+    ├── cinematic-engine.js
+    ├── cinematic.css
+    ├── index-template.html
+    ├── media-utils.js
+    ├── micro-scrub.js
+    ├── motion-rules.md
+    ├── prompts.md
+    ├── section-types.md
+    ├── video-pipeline.md
+    └── viewport-video.js
+```
+
+## Legacy continuous Scroll World
+
+`skills/scroll-world` is the **legacy continuous Scroll World** workflow from the original project and is preserved for the specialized “fly through one connected generated world” experience. It keeps the original continuous scroll-scrub / connector-clip approach rather than the bounded `cinematic-web` model.
+
+That legacy workflow may depend on external generation services and their current terms, pricing, quotas, and model availability. Treat any provider-specific claims inside the preserved legacy material as something to re-check before use.
 
 ## Install
 
-### Claude Code — as a plugin (recommended)
+### Claude Code plugin
 
-```
-/plugin marketplace add oso95/scroll-world
+```text
+/plugin marketplace add sbok363-alt/scroll-world
 /plugin install scroll-world@scroll-world
 ```
 
-Then just ask for a scroll-through world landing page, or invoke `/scroll-world`.
+The plugin exposes both `cinematic-web` and `scroll-world`.
 
-### Codex & other agents — via the skills CLI
-
-Using [Vercel's skills CLI](https://github.com/vercel-labs/skills), which installs into
-Codex, Claude Code, Cursor, and 20+ other agents:
+### Skills CLI
 
 ```bash
-npx skills add oso95/scroll-world            # pick your agent(s) when prompted
-npx skills add oso95/scroll-world -a codex   # or target Codex directly
+npx skills add sbok363-alt/scroll-world
+npx skills add sbok363-alt/scroll-world -a codex
 ```
 
-In Codex, invoke it with `$scroll-world` (or `/skills` to browse), or just ask for a
-scroll-through world landing page.
-
-### Manually (drop-in skill)
-
-Copy the skill folder into your agent's skills directory:
+### Manual
 
 ```bash
-git clone https://github.com/oso95/scroll-world
-cp -R scroll-world/skills/scroll-world ~/.claude/skills/   # Claude Code
-cp -R scroll-world/skills/scroll-world ~/.codex/skills/    # Codex
+git clone https://github.com/sbok363-alt/scroll-world
+cp -R scroll-world/skills/cinematic-web ~/.claude/skills/
+cp -R scroll-world/skills/scroll-world ~/.claude/skills/
 ```
 
-## Requirements
+Choose only the folder(s) your agent needs.
 
-- The [Monid CLI](https://monid.ai) with an API key and balance — the **default
-  video-chain backend** (Seedance 2.0, billed per clip in USD; see below).
-- The [Higgsfield CLI](https://higgsfield.ai), authenticated (`higgsfield auth login`),
-  with credits — renders the scene stills, the `kling3_0` fallback, and the whole
-  chain when Monid is absent.
-- `ffmpeg` / `ffprobe` for frame extraction and encoding.
-- Python 3 with Pillow (for the mobile portrait canvases; also the optional
-  transparent-scene knockout).
-- The [Codex CLI](https://github.com/openai/codex) (optional) — if present, the scene
-  stills can be generated through Codex's built-in `image_gen` (the same GPT Image
-  model), billed to a ChatGPT subscription instead of Higgsfield credits.
-- About the Monid default: verified 2026-07-25 — first/last-frame conditioning
-  frame-locks, so it renders the full seamless chain; frames travel via Monid's
-  free workspace file system. Pay-per-use with no subscription or monthly expiry
-  (a 6-scene 1080p chain ≈ $27). The skill re-checks the endpoint schema each
-  build and keeps qualification probes in the pipeline for when the catalog
-  changes; Higgsfield credits remain the fallback biller.
+## Tests
 
-## What it does
+The fork includes Node contract tests and Playwright browser coverage for the cinematic runtime, including progressive enhancement, viewport autoplay, bounded scrub behavior, mobile layout/accessibility, reduced motion, Save-Data, and lifecycle cleanup.
 
-It generates the art with AI: cohesive isometric diorama scenes (GPT Image 2 — via
-Higgsfield, or the Codex CLI on a ChatGPT subscription) and the camera flights
-themselves (Seedance image-to-video via **Monid by default**, pay-per-clip; Seedance
-or Kling on Higgsfield credits as fallback — only models that can frame-lock a
-seam), scrubbed
-by scroll position — the same technique behind Apple's scroll-through product pages. The
-camera genuinely moves; scroll only drives time. It's **framework-agnostic**: you get the
-Higgsfield pipeline, the prompt templates, and a portable vanilla-JS scrub engine that
-drops into plain HTML, Next.js, Vue, or a Python-served page — nothing assumes a stack.
-
-When invoked, the skill:
-
-1. **Interviews you** — the subject/industry + pitch, a brand kit (import from a URL, hand
-   it over, or have it proposed), art direction, the ordered scenes the camera visits,
-   whether you want the **mobile version** (a second chain rendered natively in 9:16
-   portrait — composed for phones, not a crop of the landscape film), and the **budget** —
-   render tiers and stills source shown with estimated credit costs, approved before
-   anything generates.
-2. **Generates the assets** — one still per scene, one "dive-in" camera
-   clip per scene, and the **connector** clips that join consecutive scenes, generated
-   from the actual rendered frames of their neighbours so every seam is frame-identical.
-   Mobile opt-in renders a parallel portrait chain the same way, frame-locked against its
-   own 9:16 renders.
-3. **Wires it up** — a config-driven scroll engine that plays the whole chain as one
-   flight, serving the portrait clips and posters automatically on phones.
-
-## What's in the skill
-
-```
-skills/scroll-world/
-├── SKILL.md                    the procedure + the seam rule + gotchas
-└── references/
-    ├── prompts.md              intake checklist + every Higgsfield prompt template
-    ├── pipeline.md             copy-paste batch scripts (generate → frames → connectors → encode)
-    ├── scrub-engine.js         portable, config-driven scrub engine (blob-seek, lazy load, seam crossfade)
-    ├── index-template.html     a minimal standalone page that mounts the engine
-    └── knockout.py             background knockout for floating scenes
+```bash
+npm test
 ```
 
-## Notes
+CI targets Chromium and WebKit. **Playwright WebKit phone emulation is not proof of real-device iOS Safari behavior.** Real-device testing is still the final check for Safari-specific media and viewport quirks.
 
-- Asset generation costs money (~N image gens on Higgsfield credits + ~2N-1 video
-  gens billed per clip on Monid by default; the mobile chain doubles the video gens)
-  and takes a while — the skill runs generations in the background and polls. Monid
-  pricing is per-token and printed per run; Higgsfield pricing isn't exposed by its
-  CLI, so the skill calibrates against your live balance. Either way the estimated
-  total is stated before spending.
-- The generated `.mp4`/`.webp` assets are produced per project; they're not shipped here.
+## Attribution
 
-## Star History
+This fork builds on the original upstream project **`oso95/scroll-world`** by cyw. The original `skills/scroll-world` workflow is intentionally retained while the fork adds the separate bounded `cinematic-web` workflow.
 
-<a href="https://www.star-history.com/?type=date&repos=oso95%2Fscroll-world">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=oso95/scroll-world&type=date&theme=dark&legend=top-left&sealed_token=rsHNX9eWfbhlu820oC1dzsc66Y8UZI4dawuHvAUlbn36F0gwOWXRDi-Qq4QFopkoEJE7bzgXPUkAmSnmMcglxAo_rM7TvGDKFehk5MzprmeT2euDRbHnTQZIxEWwjjpGQ3nodpdblW6WjTssURtDxXO2MCVL_WgJ_WnCIoVbV8qhsB_Z-Eeo8KCyVerC" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=oso95/scroll-world&type=date&legend=top-left&sealed_token=rsHNX9eWfbhlu820oC1dzsc66Y8UZI4dawuHvAUlbn36F0gwOWXRDi-Qq4QFopkoEJE7bzgXPUkAmSnmMcglxAo_rM7TvGDKFehk5MzprmeT2euDRbHnTQZIxEWwjjpGQ3nodpdblW6WjTssURtDxXO2MCVL_WgJ_WnCIoVbV8qhsB_Z-Eeo8KCyVerC" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=oso95/scroll-world&type=date&legend=top-left&sealed_token=rsHNX9eWfbhlu820oC1dzsc66Y8UZI4dawuHvAUlbn36F0gwOWXRDi-Qq4QFopkoEJE7bzgXPUkAmSnmMcglxAo_rM7TvGDKFehk5MzprmeT2euDRbHnTQZIxEWwjjpGQ3nodpdblW6WjTssURtDxXO2MCVL_WgJ_WnCIoVbV8qhsB_Z-Eeo8KCyVerC" />
- </picture>
-</a>
+Upstream: https://github.com/oso95/scroll-world
 
 ## License
 
