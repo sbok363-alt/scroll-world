@@ -176,15 +176,22 @@ test('does not seek with invalid duration and tears down object URLs cleanly', a
     const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
     const controller = mountCinematicWeb(document);
     window.__cwTriggerScrub(section, 1, 'prefetch');
-    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const deadline = performance.now() + 1000;
+    while (!video.src.startsWith('blob:') && performance.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    const loaded = video.src.startsWith('blob:');
+
     window.__cwTriggerScrub(section, 1, 'active');
     window.__cwSetDuration(video, Number.NaN);
     window.dispatchEvent(new Event('scroll'));
     await new Promise(requestAnimationFrame);
     const writes = window.__cwTimeWrites(video);
     controller.destroy();
-    return { writes, revokes: window.__cwRevokes };
+    return { loaded, writes, revokes: window.__cwRevokes };
   });
+  expect(state.loaded).toBe(true);
   expect(state.writes).toBe(0);
   expect(state.revokes).toBe(1);
 });
