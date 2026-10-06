@@ -11,8 +11,31 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'webkit', use: { browserName: 'webkit' } }
+    {
+      name: 'chromium-desktop',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1440, height: 900 }
+      }
+    },
+    {
+      name: 'chromium-phone',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true
+      }
+    },
+    {
+      name: 'webkit-phone',
+      use: {
+        browserName: 'webkit',
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true
+      }
+    }
   ],
   webServer: {
     command: 'node tests/server.mjs',
