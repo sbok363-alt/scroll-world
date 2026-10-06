@@ -16,12 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Generate transition lockfile
-        run: |
-          npm install --package-lock-only --ignore-scripts
-          echo '---PACKAGE-LOCK-BEGIN---'
-          cat package-lock.json
-          echo '---PACKAGE-LOCK-END---'
+          cache: npm
       - name: Install ffmpeg
         run: |
           sudo apt-get update
