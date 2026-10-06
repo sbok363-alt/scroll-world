@@ -1,22 +1,22 @@
 {
   "name": "scroll-world",
-  "description": "Build an immersive scroll-scrubbed 'fly through the world' landing page for any industry or brand using Higgsfield. As the visitor scrolls, a pre-rendered camera flies from outside each scene into its interior, then flows on to the next scene with no cuts — one continuous connected flight. Interviews the user for the topic, story beats, and brand kit, then generates cohesive scenes + seamless camera clips and wires a portable, framework-agnostic scroll-scrub engine. Use for a '3D world' / 'browse-through-the-industry' hero, a scroll cinematic, or a diorama landing.",
-  "version": "0.8.0",
+  "description": "Build cinematic product and brand pages with normal document scrolling, viewport-triggered autoplay video, and bounded optional micro-scrubs; also includes the preserved legacy continuous Scroll World workflow.",
+  "version": "0.9.0",
   "author": {
     "name": "cyw",
     "email": "cyw@cywang.me"
   },
-  "homepage": "https://github.com/oso95/scroll-world",
+  "homepage": "https://github.com/sbok363-alt/scroll-world",
   "license": "MIT",
   "keywords": [
-    "higgsfield",
-    "monid",
     "landing-page",
     "scroll",
     "video",
-    "seedance",
+    "cinematic",
+    "autoplay",
+    "micro-scrub",
+    "progressive-enhancement",
     "diorama",
-    "webgl-alternative",
-    "cinematic"
+    "webgl-alternative"
   ]
 }
