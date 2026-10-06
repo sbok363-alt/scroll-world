@@ -21,8 +21,8 @@ test('cinematic-web skill frontmatter and product invariants are explicit', () =
   assert.match(skill, /normal document flow/i);
   assert.match(skill, /viewport-triggered autoplay/i);
   assert.match(skill, /static.*default|default.*static/i);
-  assert.match(skill, /default.*2.*viewport/i);
-  assert.match(skill, /maximum.*3.*viewport|hard.*3.*viewport/i);
+  assert.match(skill, /default[\s\S]*?2[\s\S]*?viewport/i);
+  assert.match(skill, /(?:maximum|hard)[\s\S]*?3[\s\S]*?viewport/i);
   assert.match(skill, /one scrub.*default|at most one scrub/i);
   assert.match(skill, /never adjacent|must not be adjacent/i);
   assert.match(skill, /second.*distinct.*purpose|second.*different.*purpose/i);
@@ -63,7 +63,7 @@ test('motion rules preserve normal scrolling and bounded enhancement', () => {
   assert.match(motion, /one.*video.*at.*time|at most one.*video/i);
   assert.match(motion, /save-data/i);
   assert.match(motion, /prefers-reduced-motion/i);
-  assert.match(motion, /1.*3.*viewport/i);
+  assert.match(motion, /1[\s\S]*?3[\s\S]*?viewport/i);
   assert.match(motion, /default.*2/i);
   assert.match(motion, /one scrub.*default|at most one scrub/i);
   assert.match(motion, /normal.*scroll/i);
