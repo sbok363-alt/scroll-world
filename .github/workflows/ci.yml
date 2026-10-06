@@ -11,9 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - name: Generate transition lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          echo '---PACKAGE-LOCK-BEGIN---'
+          cat package-lock.json
+          echo '---PACKAGE-LOCK-END---'
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+      - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
       - run: npm test
+      - name: Verify legacy skill unchanged
+        run: git diff --exit-code origin/main -- skills/scroll-world
+      - name: Verify tracked worktree clean
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
