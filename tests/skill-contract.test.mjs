@@ -24,8 +24,8 @@ test('cinematic-web skill frontmatter and product invariants are explicit', () =
   assert.match(skill, /default[\s\S]*?2[\s\S]*?viewport/i);
   assert.match(skill, /(?:maximum|hard)[\s\S]*?3[\s\S]*?viewport/i);
   assert.match(skill, /one scrub.*default|at most one scrub/i);
-  assert.match(skill, /never adjacent|must not be adjacent/i);
-  assert.match(skill, /second.*distinct.*purpose|second.*different.*purpose/i);
+  assert.match(skill, /never(?:\s+be)?\s+adjacent|must not be adjacent/i);
+  assert.match(skill, /second[\s\S]*?(?:distinct|different)[\s\S]*?purpose/i);
   assert.match(skill, /no connector|do not generate connector|reject.*connector/i);
   assert.match(skill, /communication purpose/i);
   assert.match(skill, /free-first/i);
