@@ -136,7 +136,13 @@ test('coalesces seeks and performs one final catch-up after seeked even if scrol
     const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
     mountCinematicWeb(document);
     window.__cwTriggerScrub(section, 1, 'prefetch');
-    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const deadline = performance.now() + 1000;
+    while (!video.src.startsWith('blob:') && performance.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    const loaded = video.src.startsWith('blob:');
+
     window.__cwTriggerScrub(section, 1, 'active');
     window.dispatchEvent(new Event('scroll'));
     await new Promise(requestAnimationFrame);
@@ -154,9 +160,10 @@ test('coalesces seeks and performs one final catch-up after seeked even if scrol
     await new Promise(requestAnimationFrame);
     const finalWrites = window.__cwTimeWrites(video);
 
-    return { firstWrites, firstTime, duringWrites, finalWrites, finalTime: video.currentTime };
+    return { loaded, firstWrites, firstTime, duringWrites, finalWrites, finalTime: video.currentTime };
   });
 
+  expect(state.loaded).toBe(true);
   expect(state.firstWrites).toBe(1);
   expect(state.firstTime).toBeGreaterThan(0);
   expect(state.duringWrites).toBe(state.firstWrites);
