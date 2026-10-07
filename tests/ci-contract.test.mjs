@@ -16,6 +16,15 @@ test('CI is reproducible, browser-complete, and protects the legacy skill', () =
   assert.match(workflow, /git diff --exit-code origin\/main -- skills\/scroll-world/);
 });
 
+test('CI validates pull requests and main branch pushes', () => {
+  const workflow = read('.github/workflows/ci.yml');
+
+  assert.match(workflow, /^\s*pull_request:\s*$/m);
+  assert.match(workflow, /^\s*push:\s*$/m);
+  const mainBranchEntries = workflow.match(/^\s*- main\s*$/gm) ?? [];
+  assert.ok(mainBranchEntries.length >= 2, 'main must be covered by both pull_request and push triggers');
+});
+
 test('dependency lockfile is committed for npm ci', () => {
   assert.equal(existsSync('package-lock.json'), true, 'package-lock.json must be committed');
   const lock = JSON.parse(read('package-lock.json'));
