@@ -1,0 +1,37 @@
+name: cinematic-web-ci
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - design/cinematic-web
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm test
+      - name: Verify legacy skill unchanged
+        run: git diff --exit-code origin/main -- skills/scroll-world
+      - name: Verify tracked worktree clean
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code

@@ -1,0 +1,13 @@
+{
+  "name": "scroll-world-fork-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:browser": "playwright test",
+    "test:contracts": "node --test $(find tests -name '*.test.mjs' -print)",
+    "test": "npm run test:contracts && npm run test:browser"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
