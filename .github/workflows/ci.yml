@@ -1,8 +1,12 @@
 name: cinematic-web-ci
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
+      - main
       - design/cinematic-web
   workflow_dispatch:
 
