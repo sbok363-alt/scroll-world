@@ -105,7 +105,10 @@ export function mountViewportVideos(root = document, options = {}) {
     setPlaybackAttributes(record.video);
     try {
       await record.video.play();
-      if (destroyed || record.failed || active !== record) return;
+      if (destroyed || record.failed || active !== record) {
+        pauseRecord(record);
+        return;
+      }
       waitForFirstFrame(record);
     } catch {
       showPoster(record);
