@@ -79,19 +79,18 @@ test('switching reduced motion on stops active viewport video and restores its p
   expect(before.hasFrame).toBe(true);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.waitForTimeout(50);
 
-  const after = await page.evaluate(() => {
+  await expect.poll(() => page.evaluate(() => {
     const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
     const video = media.querySelector('video');
     return {
       playing: video.__cwPlaying === true,
-      pauses: video.__cwPauseCalls ?? 0,
+      pausedAtLeastOnce: (video.__cwPauseCalls ?? 0) > 0,
       hasFrame: media.classList.contains('cw-has-frame')
     };
+  })).toEqual({
+    playing: false,
+    pausedAtLeastOnce: true,
+    hasFrame: false
   });
-
-  expect(after.playing).toBe(false);
-  expect(after.pauses).toBeGreaterThan(0);
-  expect(after.hasFrame).toBe(false);
 });
