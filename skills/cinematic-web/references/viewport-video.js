@@ -40,11 +40,13 @@ export function mountViewportVideos(root = document, options = {}) {
   if (typeof win.IntersectionObserver !== 'function') return staticController();
 
   const isMobile = Boolean(win.matchMedia?.(config.mobileQuery).matches);
+  const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
+  let motionReduced = false;
   let active = null;
   let destroyed = false;
 
   function ensureSource(record, preload = 'metadata') {
-    if (record.failed) return false;
+    if (motionReduced || record.failed) return false;
     if (!record.sourceAssigned) {
       const source = selectMediaSource(record.video, isMobile);
       if (!source) return false;
@@ -66,7 +68,7 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   function markFirstFrame(record) {
-    if (destroyed || record.failed) return;
+    if (destroyed || motionReduced || record.failed) return;
     record.media.classList.add('cw-has-frame');
   }
 
@@ -81,7 +83,7 @@ export function mountViewportVideos(root = document, options = {}) {
 
     let painted = false;
     const maybePaint = () => {
-      if (painted || record.failed) return;
+      if (painted || motionReduced || record.failed) return;
       if (video.readyState >= 2 && !video.paused) {
         painted = true;
         markFirstFrame(record);
@@ -98,14 +100,14 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   async function activate(record) {
-    if (!record || record.failed || destroyed) return;
+    if (!record || motionReduced || record.failed || destroyed) return;
     if (!ensureSource(record, 'auto')) return;
     if (active && active !== record) pauseRecord(active);
     active = record;
     setPlaybackAttributes(record.video);
     try {
       await record.video.play();
-      if (destroyed || record.failed || active !== record) {
+      if (destroyed || motionReduced || record.failed || active !== record) {
         pauseRecord(record);
         return;
       }
@@ -123,7 +125,7 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   function reconcile() {
-    if (destroyed || doc?.hidden) return;
+    if (destroyed || motionReduced || doc?.hidden) return;
 
     if (active && (active.failed || active.ratio < config.pauseThreshold)) {
       pauseRecord(active);
@@ -176,6 +178,22 @@ export function mountViewportVideos(root = document, options = {}) {
     playObserver.observe(record.media);
   }
 
+  const onReducedMotionChange = event => {
+    motionReduced = event.matches;
+    if (motionReduced) {
+      pauseRecord(active);
+      active = null;
+      for (const record of records) showPoster(record);
+      return;
+    }
+    reconcile();
+  };
+  if (typeof reducedMotionQuery?.addEventListener === 'function') {
+    reducedMotionQuery.addEventListener('change', onReducedMotionChange);
+  } else if (typeof reducedMotionQuery?.addListener === 'function') {
+    reducedMotionQuery.addListener(onReducedMotionChange);
+  }
+
   const onVisibilityChange = () => {
     if (doc.hidden) {
       pauseRecord(active);
@@ -197,6 +215,11 @@ export function mountViewportVideos(root = document, options = {}) {
       destroyed = true;
       prefetchObserver.disconnect();
       playObserver.disconnect();
+      if (typeof reducedMotionQuery?.removeEventListener === 'function') {
+        reducedMotionQuery.removeEventListener('change', onReducedMotionChange);
+      } else if (typeof reducedMotionQuery?.removeListener === 'function') {
+        reducedMotionQuery.removeListener(onReducedMotionChange);
+      }
       doc.removeEventListener('visibilitychange', onVisibilityChange);
       win.removeEventListener('pagehide', onPageHide);
       pauseRecord(active);
