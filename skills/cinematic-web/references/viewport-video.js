@@ -31,17 +31,19 @@ export function mountViewportVideos(root = document, options = {}) {
     video: media.querySelector('video[data-cw-video]'),
     ratio: 0,
     failed: false,
-    sourceAssigned: false
+    sourceAssigned: false,
+    activation: 0,
+    prefetchIntersecting: false
   })).filter(record => record.video);
 
   for (const { video } of records) setPlaybackAttributes(video);
   if (!records.length) return staticController();
-  if (prefersReducedMotion(win) || saveDataEnabled(win.navigator)) return staticController();
+  if (saveDataEnabled(win.navigator)) return staticController();
   if (typeof win.IntersectionObserver !== 'function') return staticController();
 
   const isMobile = Boolean(win.matchMedia?.(config.mobileQuery).matches);
   const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
-  let motionReduced = false;
+  let motionReduced = reducedMotionQuery ? reducedMotionQuery.matches : prefersReducedMotion(win);
   let active = null;
   let destroyed = false;
 
@@ -67,23 +69,23 @@ export function mountViewportVideos(root = document, options = {}) {
     record.media.classList.remove('cw-has-frame');
   }
 
-  function markFirstFrame(record) {
-    if (destroyed || motionReduced || record.failed) return;
+  function markFirstFrame(record, activation) {
+    if (destroyed || motionReduced || record.failed || (activation !== undefined && record.activation !== activation)) return;
     record.media.classList.add('cw-has-frame');
   }
 
-  function waitForFirstFrame(record) {
+  function waitForFirstFrame(record, activation) {
     const video = record.video;
     if (typeof video.requestVideoFrameCallback === 'function') {
       try {
-        video.requestVideoFrameCallback(() => markFirstFrame(record));
+        video.requestVideoFrameCallback(() => markFirstFrame(record, activation));
         return;
       } catch {}
     }
 
     let painted = false;
     const maybePaint = () => {
-      if (painted || motionReduced || record.failed) return;
+      if (painted || motionReduced || record.failed || record.activation !== activation) return;
       if (video.readyState >= 2 && !video.paused) {
         painted = true;
         markFirstFrame(record);
@@ -96,6 +98,7 @@ export function mountViewportVideos(root = document, options = {}) {
 
   function pauseRecord(record) {
     if (!record) return;
+    record.activation += 1;
     try { record.video.pause(); } catch {}
   }
 
@@ -104,15 +107,18 @@ export function mountViewportVideos(root = document, options = {}) {
     if (!ensureSource(record, 'auto')) return;
     if (active && active !== record) pauseRecord(active);
     active = record;
+    const activation = ++record.activation;
     setPlaybackAttributes(record.video);
     try {
       await record.video.play();
+      if (record.activation !== activation) return;
       if (destroyed || motionReduced || record.failed || active !== record) {
         pauseRecord(record);
         return;
       }
-      waitForFirstFrame(record);
+      waitForFirstFrame(record, activation);
     } catch {
+      if (record.activation !== activation) return;
       showPoster(record);
       if (active === record) active = null;
     }
@@ -148,9 +154,10 @@ export function mountViewportVideos(root = document, options = {}) {
 
   const prefetchObserver = new win.IntersectionObserver(entries => {
     for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
       const record = records.find(item => item.media === entry.target);
-      if (record) ensureSource(record, 'metadata');
+      if (!record) continue;
+      record.prefetchIntersecting = entry.isIntersecting;
+      if (entry.isIntersecting) ensureSource(record, 'metadata');
     }
   }, { rootMargin: config.prefetchMargin, threshold: 0 });
 
@@ -185,6 +192,9 @@ export function mountViewportVideos(root = document, options = {}) {
       active = null;
       for (const record of records) showPoster(record);
       return;
+    }
+    for (const record of records) {
+      if (record.prefetchIntersecting) ensureSource(record, 'metadata');
     }
     reconcile();
   };
