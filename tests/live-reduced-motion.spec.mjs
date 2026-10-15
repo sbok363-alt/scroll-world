@@ -71,14 +71,6 @@ async function installDeterministicViewportMedia(page, { deferPlay = false } = {
   }, { deferPlay });
 }
 
-async function mountAndGetMedia(page) {
-  return page.evaluate(async () => {
-    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
-    mountCinematicWeb(document);
-    return document.querySelector('[data-cw-kind="video"] [data-cw-media]');
-  });
-}
-
 test('switching reduced motion on stops active viewport video and restores its poster', async ({ page }) => {
   await installDeterministicViewportMedia(page);
   await page.goto(fixture);
@@ -124,7 +116,7 @@ test('mounting with reduced motion keeps the listener and reconsiders prefetched
     mountCinematicWeb(document);
     const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
     window.__cwTrigger(media, 0.9, 'prefetch');
-    window.__cwTrigger(media, 0.9, 'play');
+    window.__cwTrigger(media, 0.1, 'play');
   });
 
   const reducedState = await page.evaluate(() => {
@@ -138,7 +130,13 @@ test('mounting with reduced motion keeps the listener and reconsiders prefetched
   await expect.poll(() => page.evaluate(() => {
     const video = document.querySelector('[data-cw-kind="video"] video');
     return { hasSource: video.hasAttribute('src'), preload: video.preload, playCalls: video.__cwPlayCalls ?? 0 };
-  })).toEqual({ hasSource: true, preload: 'auto', playCalls: 1 });
+  })).toEqual({ hasSource: true, preload: 'metadata', playCalls: 0 });
+
+  await page.evaluate(() => {
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    window.__cwTrigger(media, 0.9, 'play');
+  });
+  await expect.poll(() => page.evaluate(() => document.querySelector('[data-cw-kind="video"] video').__cwPlayCalls ?? 0)).toBe(1);
 });
 
 test('a stale play rejection cannot clear a newer activation of the same video', async ({ page }) => {
