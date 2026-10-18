@@ -220,3 +220,39 @@ test('a page with no scrub sections installs no scrub animation work', async ({ 
   });
   expect(result.after).toBe(result.before);
 });
+
+test('switching reduced motion on disables an active scrub and restores natural section height', async ({ page }) => {
+  await installScrubHarness(page);
+  await page.goto(fixture);
+  await page.evaluate(async () => {
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    Object.defineProperty(section, 'offsetHeight', { configurable: true, get: () => 3000 });
+    section.getBoundingClientRect = () => ({ top: -750, bottom: 2250, left: 0, right: 1000, width: 1000, height: 3000 });
+    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
+    mountCinematicWeb(document);
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+  });
+
+  const before = await page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    height: el.style.getPropertyValue('--cw-scrub-height')
+  }));
+  expect(before.enhanced).toBe(true);
+  expect(before.height).not.toBe('');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    height: el.style.getPropertyValue('--cw-scrub-height'),
+    viewport: el.style.getPropertyValue('--cw-scrub-viewport'),
+    hasFrame: el.querySelector('[data-cw-media]').classList.contains('cw-has-frame')
+  }))).toEqual({ enhanced: false, height: '', viewport: '', hasFrame: false });
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    hasHeight: el.style.getPropertyValue('--cw-scrub-height') !== ''
+  }))).toEqual({ enhanced: true, hasHeight: true });
+});
