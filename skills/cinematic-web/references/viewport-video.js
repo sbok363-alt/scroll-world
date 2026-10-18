@@ -111,7 +111,10 @@ export function mountViewportVideos(root = document, options = {}) {
     setPlaybackAttributes(record.video);
     try {
       await record.video.play();
-      if (record.activation !== activation) return;
+      if (record.activation !== activation) {
+        if (active !== record) pauseRecord(record);
+        return;
+      }
       if (destroyed || motionReduced || record.failed || active !== record) {
         pauseRecord(record);
         return;
