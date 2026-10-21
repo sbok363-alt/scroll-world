@@ -22,6 +22,8 @@ export function mountMicroScrubs(root = document, options = {}) {
   if (saveDataEnabled(win.navigator)) return noopController();
   if (typeof win.IntersectionObserver !== 'function') return noopController();
 
+  const connection = win.navigator.connection ?? null;
+  let dataSaving = false;
   const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
   let motionReduced = prefersReducedMotion(win);
 
@@ -42,6 +44,7 @@ export function mountMicroScrubs(root = document, options = {}) {
       resolved,
       active: false,
       intersecting: false,
+      prefetchIntersecting: false,
       loading: false,
       loaded: false,
       failed: false,
@@ -54,7 +57,7 @@ export function mountMicroScrubs(root = document, options = {}) {
   if (!records.length) return noopController();
 
   function applyGeometry(record) {
-    if (motionReduced) {
+    if (motionReduced || dataSaving) {
       clearGeometry(record);
       return;
     }
@@ -87,7 +90,7 @@ export function mountMicroScrubs(root = document, options = {}) {
   const isMobile = Boolean(win.matchMedia?.(options.mobileQuery ?? '(max-width: 860px)').matches);
 
   async function loadRecord(record) {
-    if (destroyed || motionReduced || record.loading || record.loaded || record.failed) return;
+    if (destroyed || motionReduced || dataSaving || record.loading || record.loaded || record.failed) return;
     const source = selectMediaSource(record.video, isMobile);
     if (!source) {
       record.failed = true;
@@ -127,7 +130,7 @@ export function mountMicroScrubs(root = document, options = {}) {
   }
 
   function seekRecord(record) {
-    if (destroyed || motionReduced || !record.active || !record.loaded || record.failed) return;
+    if (destroyed || motionReduced || dataSaving || !record.active || !record.loaded || record.failed) return;
     const duration = record.video.duration;
     if (!Number.isFinite(duration) || duration <= 0) return;
 
@@ -147,12 +150,12 @@ export function mountMicroScrubs(root = document, options = {}) {
 
   function runFrame() {
     rafId = 0;
-    if (destroyed || motionReduced) return;
+    if (destroyed || motionReduced || dataSaving) return;
     for (const record of records) seekRecord(record);
   }
 
   function scheduleFrame() {
-    if (destroyed || motionReduced || rafId) return;
+    if (destroyed || motionReduced || dataSaving || rafId) return;
     rafId = win.requestAnimationFrame(runFrame);
   }
 
@@ -181,9 +184,10 @@ export function mountMicroScrubs(root = document, options = {}) {
 
   const prefetchObserver = new win.IntersectionObserver(entries => {
     for (const entry of entries) {
-      if (!entry.isIntersecting) continue;
       const record = records.find(item => item.section === entry.target);
-      if (record) void loadRecord(record);
+      if (!record) continue;
+      record.prefetchIntersecting = entry.isIntersecting;
+      if (entry.isIntersecting && !dataSaving) void loadRecord(record);
     }
   }, { rootMargin: options.prefetchMargin ?? '100% 0px', threshold: 0 });
 
@@ -192,7 +196,10 @@ export function mountMicroScrubs(root = document, options = {}) {
       const record = records.find(item => item.section === entry.target);
       if (!record) continue;
       record.intersecting = entry.isIntersecting;
-      if (motionReduced) continue;
+      if (motionReduced || dataSaving) {
+        record.active = false;
+        continue;
+      }
       record.active = record.intersecting;
       if (record.active) {
         void loadRecord(record);
@@ -243,6 +250,15 @@ export function mountMicroScrubs(root = document, options = {}) {
       return;
     }
 
+    if (dataSaving) {
+      for (const record of records) {
+        record.active = false;
+        clearGeometry(record);
+      }
+      updateScrollListener();
+      return;
+    }
+
     for (const record of records) {
       if (!record.failed) applyGeometry(record);
       record.active = record.intersecting;
@@ -257,6 +273,46 @@ export function mountMicroScrubs(root = document, options = {}) {
     reducedMotionQuery.addEventListener('change', onReducedMotionChange);
   } else if (typeof reducedMotionQuery?.addListener === 'function') {
     reducedMotionQuery.addListener(onReducedMotionChange);
+  }
+
+  const onSaveDataChange = () => {
+    const enabled = saveDataEnabled(win.navigator);
+    if (enabled === dataSaving) return;
+    dataSaving = enabled;
+    if (dataSaving) {
+      if (rafId) win.cancelAnimationFrame(rafId);
+      rafId = 0;
+      if (scrollListening) win.removeEventListener('scroll', onScroll);
+      scrollListening = false;
+      for (const record of records) {
+        record.active = false;
+        record.pendingSeek = false;
+        record.media.classList.remove('cw-has-frame');
+        record.abortController?.abort();
+        record.abortController = null;
+        record.loading = false;
+        record.loaded = false;
+        if (record.objectUrl) win.URL.revokeObjectURL(record.objectUrl);
+        record.objectUrl = null;
+        record.video.removeAttribute('src');
+        try { record.video.load(); } catch {}
+        clearGeometry(record);
+      }
+      return;
+    }
+
+    for (const record of records) {
+      if (!record.failed) applyGeometry(record);
+      record.active = !motionReduced && record.intersecting;
+      const rect = record.section.getBoundingClientRect();
+      const nearViewport = rect.top <= win.innerHeight * 2 && rect.bottom >= -win.innerHeight;
+      if (!motionReduced && (record.prefetchIntersecting || record.active || nearViewport)) void loadRecord(record);
+    }
+    updateScrollListener();
+    if (records.some(record => record.active)) scheduleFrame();
+  };
+  if (typeof connection?.addEventListener === 'function') {
+    connection.addEventListener('change', onSaveDataChange);
   }
 
   const coarsePointer = Boolean(win.matchMedia?.('(pointer: coarse)').matches);
@@ -282,6 +338,9 @@ export function mountMicroScrubs(root = document, options = {}) {
         reducedMotionQuery.removeEventListener('change', onReducedMotionChange);
       } else if (typeof reducedMotionQuery?.removeListener === 'function') {
         reducedMotionQuery.removeListener(onReducedMotionChange);
+      }
+      if (typeof connection?.removeEventListener === 'function') {
+        connection.removeEventListener('change', onSaveDataChange);
       }
       if (coarsePointer) doc.removeEventListener('pointerdown', prime);
       for (const record of records) {

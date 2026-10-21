@@ -41,6 +41,8 @@ export function mountViewportVideos(root = document, options = {}) {
   if (saveDataEnabled(win.navigator)) return staticController();
   if (typeof win.IntersectionObserver !== 'function') return staticController();
 
+  const connection = win.navigator.connection ?? null;
+  let dataSaving = false;
   const isMobile = Boolean(win.matchMedia?.(config.mobileQuery).matches);
   const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
   let motionReduced = reducedMotionQuery ? reducedMotionQuery.matches : prefersReducedMotion(win);
@@ -48,7 +50,7 @@ export function mountViewportVideos(root = document, options = {}) {
   let destroyed = false;
 
   function ensureSource(record, preload = 'metadata') {
-    if (motionReduced || record.failed) return false;
+    if (motionReduced || dataSaving || record.failed) return false;
     if (!record.sourceAssigned) {
       const source = selectMediaSource(record.video, isMobile);
       if (!source) return false;
@@ -70,7 +72,7 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   function markFirstFrame(record, activation) {
-    if (destroyed || motionReduced || record.failed || (activation !== undefined && record.activation !== activation)) return;
+    if (destroyed || motionReduced || dataSaving || record.failed || (activation !== undefined && record.activation !== activation)) return;
     record.media.classList.add('cw-has-frame');
   }
 
@@ -103,7 +105,7 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   async function activate(record) {
-    if (!record || motionReduced || record.failed || destroyed) return;
+    if (!record || motionReduced || dataSaving || record.failed || destroyed) return;
     if (!ensureSource(record, 'auto')) return;
     if (active && active !== record) pauseRecord(active);
     active = record;
@@ -134,7 +136,7 @@ export function mountViewportVideos(root = document, options = {}) {
   }
 
   function reconcile() {
-    if (destroyed || motionReduced || doc?.hidden) return;
+    if (destroyed || motionReduced || dataSaving || doc?.hidden) return;
 
     if (active && (active.failed || active.ratio < config.pauseThreshold)) {
       pauseRecord(active);
@@ -160,7 +162,7 @@ export function mountViewportVideos(root = document, options = {}) {
       const record = records.find(item => item.media === entry.target);
       if (!record) continue;
       record.prefetchIntersecting = entry.isIntersecting;
-      if (entry.isIntersecting) ensureSource(record, 'metadata');
+      if (entry.isIntersecting && !dataSaving) ensureSource(record, 'metadata');
     }
   }, { rootMargin: config.prefetchMargin, threshold: 0 });
 
@@ -207,6 +209,31 @@ export function mountViewportVideos(root = document, options = {}) {
     reducedMotionQuery.addListener(onReducedMotionChange);
   }
 
+  const onSaveDataChange = () => {
+    const enabled = saveDataEnabled(win.navigator);
+    if (enabled === dataSaving) return;
+    dataSaving = enabled;
+    if (dataSaving) {
+      pauseRecord(active);
+      active = null;
+      for (const record of records) {
+        showPoster(record);
+        record.video.removeAttribute('src');
+        record.sourceAssigned = false;
+        try { record.video.load(); } catch {}
+      }
+      return;
+    }
+
+    for (const record of records) {
+      if (record.prefetchIntersecting) ensureSource(record, 'metadata');
+    }
+    reconcile();
+  };
+  if (typeof connection?.addEventListener === 'function') {
+    connection.addEventListener('change', onSaveDataChange);
+  }
+
   const onVisibilityChange = () => {
     if (doc.hidden) {
       pauseRecord(active);
@@ -232,6 +259,9 @@ export function mountViewportVideos(root = document, options = {}) {
         reducedMotionQuery.removeEventListener('change', onReducedMotionChange);
       } else if (typeof reducedMotionQuery?.removeListener === 'function') {
         reducedMotionQuery.removeListener(onReducedMotionChange);
+      }
+      if (typeof connection?.removeEventListener === 'function') {
+        connection.removeEventListener('change', onSaveDataChange);
       }
       doc.removeEventListener('visibilitychange', onVisibilityChange);
       win.removeEventListener('pagehide', onPageHide);
