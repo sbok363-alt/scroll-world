@@ -269,6 +269,21 @@ test('real tiny MP4 paints a frame in Chromium/WebKit without a click overlay', 
 });
 
 
+test('disabling Save-Data after mount restores eligible viewport media', async ({ page }) => {
+  await installDeterministicMedia(page, { saveData: true });
+  await page.goto(fixture);
+  await mount(page);
+  await page.evaluate(() => {
+    window.__cwSetSaveData(false);
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    window.__cwTrigger(media, 0.9, 'all');
+  });
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').getAttribute('src'))
+    .toBe('/tests/fixtures/media/tiny.mp4');
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').evaluate(video => video.__cwPlayCalls ?? 0))
+    .toBeGreaterThan(0);
+});
+
 test('enabling Save-Data mid-session stops loaded viewport media and resumes only when disabled', async ({ page }) => {
   await installDeterministicMedia(page);
   await page.goto(fixture);

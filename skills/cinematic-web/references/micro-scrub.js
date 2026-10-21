@@ -19,11 +19,10 @@ export function mountMicroScrubs(root = document, options = {}) {
   const doc = root.nodeType === 9 ? root : root.ownerDocument;
   const sections = [...root.querySelectorAll('[data-cw-kind="scrub"]')];
   if (!sections.length) return noopController();
-  if (saveDataEnabled(win.navigator)) return noopController();
   if (typeof win.IntersectionObserver !== 'function') return noopController();
 
   const connection = win.navigator.connection ?? null;
-  let dataSaving = false;
+  let dataSaving = saveDataEnabled(win.navigator);
   const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
   let motionReduced = prefersReducedMotion(win);
 

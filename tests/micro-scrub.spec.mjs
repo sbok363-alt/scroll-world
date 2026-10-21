@@ -264,6 +264,23 @@ test('switching reduced motion on disables an active scrub and restores natural 
   }))).toEqual({ enhanced: true, hasHeight: true });
 });
 
+test('disabling Save-Data after mount restores eligible scrub enhancement', async ({ page }) => {
+  await installScrubHarness(page, { saveData: true });
+  await page.goto(fixture);
+  await page.evaluate(async () => {
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    Object.defineProperty(section, 'offsetHeight', { configurable: true, get: () => 3000 });
+    section.getBoundingClientRect = () => ({ top: -750, bottom: 2250, left: 0, right: 1000, width: 1000, height: 3000 });
+    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
+    mountCinematicWeb(document);
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+    window.__cwSetSaveData(false);
+  });
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"] video').getAttribute('src')).toMatch(/^blob:/);
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(section => section.classList.contains('cw-scrub--enhanced'))).toBe(true);
+});
+
 test('enabling Save-Data mid-session releases scrub media and restores natural section height', async ({ page }) => {
   await installScrubHarness(page);
   await page.goto(fixture);

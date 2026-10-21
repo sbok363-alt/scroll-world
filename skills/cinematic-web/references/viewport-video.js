@@ -38,11 +38,10 @@ export function mountViewportVideos(root = document, options = {}) {
 
   for (const { video } of records) setPlaybackAttributes(video);
   if (!records.length) return staticController();
-  if (saveDataEnabled(win.navigator)) return staticController();
   if (typeof win.IntersectionObserver !== 'function') return staticController();
 
   const connection = win.navigator.connection ?? null;
-  let dataSaving = false;
+  let dataSaving = saveDataEnabled(win.navigator);
   const isMobile = Boolean(win.matchMedia?.(config.mobileQuery).matches);
   const reducedMotionQuery = win.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
   let motionReduced = reducedMotionQuery ? reducedMotionQuery.matches : prefersReducedMotion(win);
@@ -87,7 +86,7 @@ export function mountViewportVideos(root = document, options = {}) {
 
     let painted = false;
     const maybePaint = () => {
-      if (painted || motionReduced || record.failed || record.activation !== activation) return;
+      if (painted || motionReduced || dataSaving || record.failed || record.activation !== activation) return;
       if (video.readyState >= 2 && !video.paused) {
         painted = true;
         markFirstFrame(record);
