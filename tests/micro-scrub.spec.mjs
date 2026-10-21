@@ -27,7 +27,14 @@ async function installScrubHarness(page, { saveData = false } = {}) {
       }
     };
 
-    Object.defineProperty(navigator, 'connection', { configurable: true, value: { saveData } });
+    const connection = new EventTarget();
+    let saveDataEnabled = saveData;
+    Object.defineProperty(connection, 'saveData', { get: () => saveDataEnabled });
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection });
+    window.__cwSetSaveData = value => {
+      saveDataEnabled = value;
+      connection.dispatchEvent(new Event('change'));
+    };
     window.__cwFetchCount = 0;
     window.__cwRevokes = 0;
     window.fetch = async (_url, options = {}) => {
@@ -219,4 +226,95 @@ test('a page with no scrub sections installs no scrub animation work', async ({ 
     return { before, after: rafCalls };
   });
   expect(result.after).toBe(result.before);
+});
+
+test('switching reduced motion on disables an active scrub and restores natural section height', async ({ page }) => {
+  await installScrubHarness(page);
+  await page.goto(fixture);
+  await page.evaluate(async () => {
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    Object.defineProperty(section, 'offsetHeight', { configurable: true, get: () => 3000 });
+    section.getBoundingClientRect = () => ({ top: -750, bottom: 2250, left: 0, right: 1000, width: 1000, height: 3000 });
+    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
+    mountCinematicWeb(document);
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+  });
+
+  const before = await page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    height: el.style.getPropertyValue('--cw-scrub-height')
+  }));
+  expect(before.enhanced).toBe(true);
+  expect(before.height).not.toBe('');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    height: el.style.getPropertyValue('--cw-scrub-height'),
+    viewport: el.style.getPropertyValue('--cw-scrub-viewport'),
+    hasFrame: el.querySelector('[data-cw-media]').classList.contains('cw-has-frame')
+  }))).toEqual({ enhanced: false, height: '', viewport: '', hasFrame: false });
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(el => ({
+    enhanced: el.classList.contains('cw-scrub--enhanced'),
+    hasHeight: el.style.getPropertyValue('--cw-scrub-height') !== ''
+  }))).toEqual({ enhanced: true, hasHeight: true });
+});
+
+test('disabling Save-Data after mount restores eligible scrub enhancement', async ({ page }) => {
+  await installScrubHarness(page, { saveData: true });
+  await page.goto(fixture);
+  await page.evaluate(async () => {
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    Object.defineProperty(section, 'offsetHeight', { configurable: true, get: () => 3000 });
+    section.getBoundingClientRect = () => ({ top: -750, bottom: 2250, left: 0, right: 1000, width: 1000, height: 3000 });
+    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
+    mountCinematicWeb(document);
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+    window.__cwSetSaveData(false);
+  });
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"] video').getAttribute('src')).toMatch(/^blob:/);
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(section => section.classList.contains('cw-scrub--enhanced'))).toBe(true);
+});
+
+test('enabling Save-Data mid-session releases scrub media and restores natural section height', async ({ page }) => {
+  await installScrubHarness(page);
+  await page.goto(fixture);
+  await page.evaluate(async () => {
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    Object.defineProperty(section, 'offsetHeight', { configurable: true, get: () => 3000 });
+    section.getBoundingClientRect = () => ({ top: -750, bottom: 2250, left: 0, right: 1000, width: 1000, height: 3000 });
+    const { mountCinematicWeb } = await import('/skills/cinematic-web/references/cinematic-engine.js');
+    mountCinematicWeb(document);
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+  });
+
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"] video').getAttribute('src'))
+    .toMatch(/^blob:/);
+  expect(await page.locator('[data-cw-kind="scrub"]').evaluate(section => section.classList.contains('cw-scrub--enhanced'))).toBe(true);
+
+  await page.evaluate(() => {
+    window.__cwSetSaveData(true);
+    const section = document.querySelector('[data-cw-kind="scrub"]');
+    window.__cwTriggerScrub(section, 1, 'prefetch');
+    window.__cwTriggerScrub(section, 1, 'active');
+  });
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(section => ({
+    enhanced: section.classList.contains('cw-scrub--enhanced'),
+    hasHeight: section.style.getPropertyValue('--cw-scrub-height') !== '',
+    hasSource: section.querySelector('video').hasAttribute('src'),
+    hasFrame: section.querySelector('[data-cw-media]').classList.contains('cw-has-frame'),
+    revokes: window.__cwRevokes
+  }))).toEqual({ enhanced: false, hasHeight: false, hasSource: false, hasFrame: false, revokes: 1 });
+
+  await page.evaluate(() => window.__cwSetSaveData(false));
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"] video').getAttribute('src'))
+    .toMatch(/^blob:/);
+  await expect.poll(() => page.locator('[data-cw-kind="scrub"]').evaluate(section => section.classList.contains('cw-scrub--enhanced'))).toBe(true);
+  expect(await page.evaluate(() => window.__cwFetchCount)).toBe(2);
 });

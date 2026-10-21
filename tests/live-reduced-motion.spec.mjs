@@ -153,6 +153,10 @@ test('a stale play rejection cannot clear a newer activation of the same video',
 
   await expect.poll(() => page.evaluate(() => window.__cwPendingPlays.length)).toBe(1);
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => page.evaluate(() => {
+    const video = document.querySelector('[data-cw-kind="video"] video');
+    return (video.__cwPauseCalls ?? 0) > 0;
+  })).toBe(true);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect.poll(() => page.evaluate(() => window.__cwPendingPlays.length)).toBe(2);
 

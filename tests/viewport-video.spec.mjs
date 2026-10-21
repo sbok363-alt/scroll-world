@@ -31,10 +31,14 @@ async function installDeterministicMedia(page, { saveData = false } = {}) {
       targets: [...observer.targets].map(el => el.getAttribute('data-cw-media') !== null ? 'media' : el.tagName)
     }));
 
-    Object.defineProperty(navigator, 'connection', {
-      configurable: true,
-      value: { saveData }
-    });
+    const connection = new EventTarget();
+    let saveDataEnabled = saveData;
+    Object.defineProperty(connection, 'saveData', { get: () => saveDataEnabled });
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection });
+    window.__cwSetSaveData = value => {
+      saveDataEnabled = value;
+      connection.dispatchEvent(new Event('change'));
+    };
 
     const time = new WeakMap();
     Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
@@ -262,4 +266,56 @@ test('real tiny MP4 paints a frame in Chromium/WebKit without a click overlay', 
   await expect(video).toHaveAttribute('playsinline', '');
   expect(await video.evaluate(v => v.muted && !v.controls)).toBe(true);
   await expect(page.locator('[data-cw-play-overlay]')).toHaveCount(0);
+});
+
+
+test('disabling Save-Data after mount restores eligible viewport media', async ({ page }) => {
+  await installDeterministicMedia(page, { saveData: true });
+  await page.goto(fixture);
+  await mount(page);
+  await page.evaluate(() => {
+    window.__cwSetSaveData(false);
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    window.__cwTrigger(media, 0.9, 'all');
+  });
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').getAttribute('src'))
+    .toBe('/tests/fixtures/media/tiny.mp4');
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').evaluate(video => video.__cwPlayCalls ?? 0))
+    .toBeGreaterThan(0);
+});
+
+test('enabling Save-Data mid-session stops loaded viewport media and resumes only when disabled', async ({ page }) => {
+  await installDeterministicMedia(page);
+  await page.goto(fixture);
+  await mount(page);
+
+  await page.evaluate(async () => {
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    window.__cwTrigger(media, 0.9, 'prefetch');
+    window.__cwTrigger(media, 0.9, 'play');
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  const before = await page.evaluate(() => {
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    const video = media.querySelector('video');
+    return { playing: video.__cwPlaying === true, hasSource: video.hasAttribute('src'), hasFrame: media.classList.contains('cw-has-frame') };
+  });
+  expect(before).toEqual({ playing: true, hasSource: true, hasFrame: true });
+
+  await page.evaluate(() => window.__cwSetSaveData(true));
+  await expect.poll(() => page.evaluate(() => {
+    const media = document.querySelector('[data-cw-kind="video"] [data-cw-media]');
+    const video = media.querySelector('video');
+    return { playing: video.__cwPlaying === true, hasSource: video.hasAttribute('src'), hasFrame: media.classList.contains('cw-has-frame') };
+  })).toEqual({ playing: false, hasSource: false, hasFrame: false });
+
+  await page.evaluate(() => window.__cwTrigger(document.querySelector('[data-cw-kind="video"] [data-cw-media]'), 0.9, 'all'));
+  expect(await page.locator('[data-cw-kind="video"] video').getAttribute('src')).toBeNull();
+
+  await page.evaluate(() => window.__cwSetSaveData(false));
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').getAttribute('src'))
+    .toBe('/tests/fixtures/media/tiny.mp4');
+  await expect.poll(() => page.locator('[data-cw-kind="video"] video').evaluate(video => video.__cwPlayCalls ?? 0)).toBeGreaterThan(1);
 });
